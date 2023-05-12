@@ -12,9 +12,9 @@ import lit.Test
 
 import stl.test.tests
 
-_envlst_cache = dict()
-_preprocessed_file_cache = dict()
-_expected_result_entry_cache = dict()
+_envlst_cache = {}
+_preprocessed_file_cache = {}
+_expected_result_entry_cache = {}
 
 
 @dataclass
@@ -67,10 +67,7 @@ def _append_env_entries(*args) -> _TmpEnvEntry:
     result = _TmpEnvEntry()
     for entry in args:
         for k, v in entry.env.items():
-            if k not in result.env:
-                result.env[k] = v
-            else:
-                result.env[k] = ' '.join((result.env[k], v))
+            result.env[k] = v if k not in result.env else ' '.join((result.env[k], v))
     return result
 
 
@@ -91,30 +88,27 @@ def _parse_env_lst(env_lst: Path, ctx: _ParseCtx):
             ctx.current.append(_parse_env_line(line))
 
 
-def parse_commented_file(filename: Union[str, bytes, os.PathLike]) \
-        -> List[str]:
+def parse_commented_file(filename: Union[str, bytes, os.PathLike]) -> List[str]:
     if str(filename) in _preprocessed_file_cache:
         return _preprocessed_file_cache[str(filename)]
 
     filename_path = Path(filename)
-    result = list()
+    result = []
     with filename_path.open() as f:
         for line in f.readlines():
             if (line:=_COMMENT_REGEX.sub("", line)):
-                line = line.strip()
-                if line:
+                if line := line.strip():
                     result.append(line)
 
         _preprocessed_file_cache[str(filename)] = result
         return result
 
 
-def parse_result_file(filename: Union[str, bytes, os.PathLike]) \
-        -> Dict[str, lit.Test.ResultCode]:
+def parse_result_file(filename: Union[str, bytes, os.PathLike]) -> Dict[str, lit.Test.ResultCode]:
     if str(filename) in _expected_result_entry_cache:
         return _expected_result_entry_cache[str(filename)]
 
-    res = dict()
+    res = {}
     for line in parse_commented_file(filename):
         m = _EXPECTED_RESULT_REGEX.match(line)
         prefix = m.group("prefix")

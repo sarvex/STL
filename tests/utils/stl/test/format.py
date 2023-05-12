@@ -40,10 +40,7 @@ def _mergeEnvironments(currentEnv, otherEnv):
     for k, v in otherEnv.items():
         if k == 'PATH':
             oldPath = currentEnv.get(k, '')
-            if oldPath != '':
-                resultEnv[k] = ';'.join((oldPath, v))
-            else:
-                resultEnv[k] = v
+            resultEnv[k] = ';'.join((oldPath, v)) if oldPath != '' else v
         else:
             resultEnv[k] = v
 
@@ -66,7 +63,7 @@ def _getEnvLst(sourcePath, localConfig):
 def _isLegalDirectory(sourcePath, test_subdirs):
     for prefix in test_subdirs:
         common = os.path.normpath(os.path.commonpath((sourcePath, prefix)))
-        if common == sourcePath or common == prefix:
+        if common in [sourcePath, prefix]:
             return True
 
     return False
@@ -95,15 +92,16 @@ class STLTestFormat:
                 continue
 
             filepath = os.path.join(sourcePath, filename)
-            if not os.path.isdir(filepath):
-                if any([re.search(ext, filename) for ext in localConfig.suffixes]):
-                    if envEntries is None:
-                        litConfig.fatal("Could not find an env.lst file.")
+            if not os.path.isdir(filepath) and any(
+                re.search(ext, filename) for ext in localConfig.suffixes
+            ):
+                if envEntries is None:
+                    litConfig.fatal("Could not find an env.lst file.")
 
-                    for envEntry, envNum in zip(envEntries, itertools.count()):
-                        yield testClass(testSuite, pathInSuite + (filename,),
-                                        litConfig, localConfig, envEntry,
-                                        formatString.format(envNum))
+                for envEntry, envNum in zip(envEntries, itertools.count()):
+                    yield testClass(testSuite, pathInSuite + (filename,),
+                                    litConfig, localConfig, envEntry,
+                                    formatString.format(envNum))
 
     def getIsenseRspFileSteps(self, test, litConfig, shared):
         if litConfig.edg_drop is not None and test.isenseRspPath is not None:
@@ -173,18 +171,38 @@ class STLTestFormat:
             cmd = [test.cxx, '-c', test.getSourcePath(), *test.flags, *test.compileFlags]
             yield TestStep(cmd, shared.execDir, shared.env, shouldFail)
         elif TestType.LINK in test.testType or \
-                ('clang' in test.config.available_features and 'asan' in test.config.available_features):
-            objFile = tmpBase + '.o'
-            cmd = [test.cxx, '-c', test.getSourcePath(), *test.flags, *test.compileFlags, '-Fo' + objFile]
+                    ('clang' in test.config.available_features and 'asan' in test.config.available_features):
+            objFile = f'{tmpBase}.o'
+            cmd = [
+                test.cxx,
+                '-c',
+                test.getSourcePath(),
+                *test.flags,
+                *test.compileFlags,
+                f'-Fo{objFile}',
+            ]
             yield TestStep(cmd, shared.execDir, shared.env, False)
 
-            shared.execFile = tmpBase + '.exe'
-            cmd = ['link.exe', objFile, *test.flags, '-out:' + shared.execFile, *test.linkFlags]
+            shared.execFile = f'{tmpBase}.exe'
+            cmd = [
+                'link.exe',
+                objFile,
+                *test.flags,
+                f'-out:{shared.execFile}',
+                *test.linkFlags,
+            ]
             yield TestStep(cmd, shared.execDir, shared.env, shouldFail)
         elif TestType.RUN in test.testType:
-            shared.execFile = tmpBase + '.exe'
-            cmd = [test.cxx, test.getSourcePath(), *test.flags, *test.compileFlags,
-                   '-Fe' + shared.execFile, '-link', *test.linkFlags]
+            shared.execFile = f'{tmpBase}.exe'
+            cmd = [
+                test.cxx,
+                test.getSourcePath(),
+                *test.flags,
+                *test.compileFlags,
+                f'-Fe{shared.execFile}',
+                '-link',
+                *test.linkFlags,
+            ]
             yield TestStep(cmd, shared.execDir, shared.env, False)
 
     def getTestSetupSteps(self, test, litConfig, shared):
@@ -197,7 +215,7 @@ class STLTestFormat:
         yield from []
 
     def getTestSteps(self, test, litConfig, shared):
-        if not TestType.RUN in test.testType:
+        if TestType.RUN not in test.testType:
             yield from []
             return
 
@@ -206,8 +224,7 @@ class STLTestFormat:
 
     def execute(self, test, litConfig):
         try:
-            result = test.configureTest(litConfig)
-            if result:
+            if result := test.configureTest(litConfig):
                 return result
 
             # This test is expected to fail at some point, but we're not sure if
@@ -242,7 +259,7 @@ class STLTestFormat:
             _, _, exception_traceback = sys.exc_info()
             filename = exception_traceback.tb_frame.f_code.co_filename
             line_number = exception_traceback.tb_lineno
-            litConfig.error(repr(e) + ' at ' + filename + ':' + str(line_number))
+            litConfig.error(f'{repr(e)} at {filename}:{str(line_number)}')
 
 
 class LibcxxTestFormat(STLTestFormat):

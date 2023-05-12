@@ -84,7 +84,7 @@ class CustomTestFormat(STLTestFormat):
                     remainingDependencies[hdr] = [req['logical-name'] for req in jsonObject['rules'][0]['requires']]
 
             # Build header units in topologically sorted order.
-            while len(remainingDependencies) > 0:
+            while remainingDependencies:
                 # When a header has no remaining dependencies, it is ready to be built.
                 readyToBuild = [hdr for hdr, dep in remainingDependencies.items() if len(dep) == 0]
 

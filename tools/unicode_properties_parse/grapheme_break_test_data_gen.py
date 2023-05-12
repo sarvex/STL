@@ -99,7 +99,7 @@ def generate_all() -> str:
     test_data_path = Path(__file__).absolute().with_name("GraphemeBreakTest.txt")
     filename = ""
     timestamp = ""
-    lines = list()
+    lines = []
     with open(test_data_path, mode='rt', encoding='utf-8') as file:
         filename = file.readline().replace("#", "//").rstrip()
         timestamp = file.readline().replace("#", "//").rstrip()

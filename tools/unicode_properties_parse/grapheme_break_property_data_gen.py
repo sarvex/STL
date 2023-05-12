@@ -44,7 +44,7 @@ def compact_property_ranges(input: list[PropertyRange]) -> list[PropertyRange]:
     Merging the ranges results in fewer ranges in the output table,
     reducing binary size and improving lookup performance.
     """
-    result = list()
+    result = []
     for x in input:
         if (
             len(result)
@@ -228,7 +228,7 @@ def property_ranges_to_table(ranges: list[PropertyRange], props: list[str]) -> P
 
 def generate_cpp_data(filename: str, timestamp: str, prop_name: str, ranges: list[PropertyRange]) -> str:
     result = StringIO()
-    prop_values = sorted(set(x.prop for x in ranges))
+    prop_values = sorted({x.prop for x in ranges})
     table = property_ranges_to_table(ranges, prop_values)
     enumerator_values = [PROP_VALUE_ENUMERATOR_TEMPLATE.format(
         x) for x in prop_values]
@@ -261,8 +261,8 @@ def generate_data_tables() -> str:
     gbp_timestamp = ""
     emoji_filename = ""
     emoji_timestamp = ""
-    gbp_ranges = list()
-    emoji_ranges = list()
+    gbp_ranges = []
+    emoji_ranges = []
     with gbp_data_path.open(encoding='utf-8') as f:
         gbp_filename = f.readline().replace("#", "//").rstrip()
         gbp_timestamp = f.readline().replace("#", "//").rstrip()

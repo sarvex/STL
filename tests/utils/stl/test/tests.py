@@ -17,7 +17,7 @@ from lit.Test import Result, SKIPPED, Test, UNSUPPORTED
 from libcxx.test.dsl import Feature
 import lit
 
-_compilerPathCache = dict()
+_compilerPathCache = {}
 
 
 class TestType(Flag):
@@ -44,50 +44,56 @@ class STLTest(Test):
         self.linkFlags = []
         self.testType = None
 
-        result = self._configureExpectedResult(litConfig)
-        if result:
+        if result := self._configureExpectedResult(litConfig):
             return result
 
-        result = self._handleEnvlst(litConfig)
-        if result:
+        if result := self._handleEnvlst(litConfig):
             return result
 
         self._parseTest()
         self._parseFlags(litConfig)
 
-        missing_required_features = self.getMissingRequiredFeatures()
-        if missing_required_features:
+        if missing_required_features := self.getMissingRequiredFeatures():
             msg = ', '.join(missing_required_features)
-            return Result(UNSUPPORTED, "Test requires the following unavailable features: %s" % msg)
+            return Result(
+                UNSUPPORTED,
+                f"Test requires the following unavailable features: {msg}",
+            )
 
-        unsupported_features = self.getUnsupportedFeatures()
-        if unsupported_features:
+        if unsupported_features := self.getUnsupportedFeatures():
             msg = ', '.join(unsupported_features)
-            return Result(UNSUPPORTED, "Test does not support the following features and/or targets: %s" % msg)
+            return Result(
+                UNSUPPORTED,
+                f"Test does not support the following features and/or targets: {msg}",
+            )
 
         if not self.isWithinFeatureLimits():
             msg = ', '.join(self.config.limit_to_features)
-            return Result(UNSUPPORTED, "Test does not require any of the features specified in limit_to_features: %s" %
-                          msg)
+            return Result(
+                UNSUPPORTED,
+                f"Test does not require any of the features specified in limit_to_features: {msg}",
+            )
 
         if 'edg_drop' in self.config.available_features:
-            if not 'edg' in self.requires:
+            if 'edg' not in self.requires:
                 return Result(UNSUPPORTED, 'We only run /BE tests with the edg drop')
 
             _, tmpBase = self.getTempPaths()
-            self.isenseRspPath = tmpBase + '.isense.rsp'
-            self.compileFlags.extend(['/dE--write-isense-rsp', '/dE' + self.isenseRspPath])
+            self.isenseRspPath = f'{tmpBase}.isense.rsp'
+            self.compileFlags.extend(['/dE--write-isense-rsp', f'/dE{self.isenseRspPath}'])
 
         self._configureTestType()
 
         forceFail = self.expectedResult and self.expectedResult.isFailure
         buildFail = forceFail and TestType.COMPILE|TestType.LINK in self.testType
 
-        if (litConfig.build_only and buildFail):
+        if (
+            litConfig.build_only
+            and buildFail
+            or not litConfig.build_only
+            and forceFail
+        ):
             self.xfails = ['*']
-        elif (not litConfig.build_only and forceFail):
-            self.xfails = ['*']
-
         return None
 
     def _parseTest(self):
@@ -138,7 +144,7 @@ class STLTest(Test):
         return '/'.join(self.path_in_suite[:-1]) + ":" + self.envNum
 
     def getFullName(self):
-        return self.suite.config.name + ' :: ' + self.getTestName()
+        return f'{self.suite.config.name} :: {self.getTestName()}'
 
     def getSourcePath(self):
         return os.path.normpath(super().getSourcePath())
@@ -157,17 +163,17 @@ class STLTest(Test):
         testName = self.getTestName()
         self.expectedResult = None
 
-        if testName in litConfig.expected_results.get(self.config.name, dict()):
+        if testName in litConfig.expected_results.get(self.config.name, {}):
             self.expectedResult = litConfig.expected_results[self.config.name][testName]
         else:
-          currentPrefix = ""
-          for prefix, result in litConfig.expected_results.get(self.config.name, dict()).items():
-              if testName == prefix:
-                  self.expectedResult = result
-                  break
-              elif testName.startswith(prefix) and len(prefix) > len(currentPrefix):
-                  currentPrefix = prefix
-                  self.expectedResult = result
+            currentPrefix = ""
+            for prefix, result in litConfig.expected_results.get(self.config.name, {}).items():
+                if testName == prefix:
+                    self.expectedResult = result
+                    break
+                elif testName.startswith(prefix) and len(prefix) > len(currentPrefix):
+                    currentPrefix = prefix
+                    self.expectedResult = result
 
         if self.expectedResult is not None:
             if self.expectedResult == SKIPPED:
@@ -301,7 +307,7 @@ class LibcxxTest(STLTest):
 
     def getExecDir(self):
         execDir, _ = lit.TestRunner.getTempPaths(self)
-        execDir = os.path.join(execDir, self.path_in_suite[-1] + '.dir')
+        execDir = os.path.join(execDir, f'{self.path_in_suite[-1]}.dir')
         execDir = os.path.join(execDir, self.envNum)
         return os.path.normpath(execDir)
 

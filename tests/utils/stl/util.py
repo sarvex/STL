@@ -68,7 +68,7 @@ class ExecuteCommandTimeoutException(Exception):
 
 # Close extra file handles on UNIX (on Windows this cannot be done while
 # also redirecting input).
-kUseCloseFDs = not (platform.system() == 'Windows')
+kUseCloseFDs = platform.system() != 'Windows'
 
 
 def decodeOutput(bytes):
@@ -155,8 +155,7 @@ def killProcessAndChildren(pid):
     neutral implementation.
     """
     if platform.system() == 'AIX':
-        subprocess.call('kill -kill $(ps -o pid= -L{})'.format(pid),
-                        shell=True)
+        subprocess.call(f'kill -kill $(ps -o pid= -L{pid})', shell=True)
     else:
         import psutil
         try:
